@@ -1,209 +1,216 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Amrit Paper Trading</title>
+  <title>Amrit GOD LEVEL Trading</title>
+
   <style>
-    body { background:#0d1117; color:white; text-align:center; font-family:Arial; }
-    input, select, button { padding:10px; margin:5px; border-radius:5px; border:none; }
+    body{margin:0;font-family:Arial;background:#0d1117;color:white;text-align:center;}
+    header{background:#161b22;padding:15px;font-size:22px;}
+    .card{background:#161b22;margin:10px;padding:15px;border-radius:10px;}
+    button{padding:10px;margin:5px;border:none;border-radius:5px;}
     .buy{background:green;color:white;}
     .sell{background:red;color:white;}
-    .card{background:#161b22;padding:15px;margin:10px;border-radius:10px;}
+    input,select{padding:10px;margin:5px;}
   </style>
 </head>
 
 <body>
 
-<h1>📈 Amrit Paper Trading</h1>
-
-<!-- LOGIN -->
-<div id="loginBox">
-  <input type="email" id="email" placeholder="Email"><br>
-  <input type="password" id="password" placeholder="Password"><br>
-  <button onclick="signup()">Signup</button>
-  <button onclick="login()">Login</button>
-</div>
-
-<!-- APP -->
-<div id="app" style="display:none;">
+<header>🔥 Amrit GOD LEVEL Trading</header>
 
 <div class="card">
-  <h3 id="balance">Balance: ₹0</h3>
-  <h3 id="portfolio"></h3>
+<h3 id="balance"></h3>
+<h3 id="pl"></h3>
+<h3 id="signal"></h3>
 </div>
 
-<select id="symbol" onchange="changeStock()">
+<select id="symbol" onchange="changeSymbol()">
   <option value="AAPL">Apple</option>
   <option value="TSLA">Tesla</option>
-  <option value="MSFT">Microsoft</option>
+  <option value="BTCUSDT">Bitcoin</option>
 </select>
 
 <br>
 
-<input type="number" id="qty" placeholder="Quantity"><br>
+<input type="number" id="qty" placeholder="Quantity">
+<input type="number" id="sl" placeholder="Stop Loss">
+<input type="number" id="tp" placeholder="Take Profit">
+
+<br>
 
 <button class="buy" onclick="buy()">BUY</button>
 <button class="sell" onclick="sell()">SELL</button>
 
-<h2 id="price">Price: Loading...</h2>
+<h2 id="price">Loading...</h2>
 
-<h3>📜 Trade History</h3>
+<div id="chart"></div>
+
+<h3>📜 History</h3>
 <div id="history"></div>
 
-</div>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore.js"></script>
+<script src="https://s3.tradingview.com/tv.js"></script>
 
 <script>
-// 🔥 YOUR FIREBASE CONFIG
-const firebaseConfig = {
-  apiKey: "PASTE",
-  authDomain: "PASTE",
-  projectId: "PASTE"
-};
 
-firebase.initializeApp(firebaseConfig);
+// STORAGE
+let balance=localStorage.getItem("balance")||100000;
+let portfolio=JSON.parse(localStorage.getItem("portfolio")||"{}");
+let avgPrice=JSON.parse(localStorage.getItem("avgPrice")||"{}");
+let stopLoss=JSON.parse(localStorage.getItem("sl")||"{}");
+let takeProfit=JSON.parse(localStorage.getItem("tp")||"{}");
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-
-let userId="";
-let balance=0;
-let portfolio={}; // multiple stocks
 let price=0;
-let currentSymbol="AAPL";
+let symbol="AAPL";
 
-// AUTH
-function signup(){
-  auth.createUserWithEmailAndPassword(email(), pass())
-  .then(u=>{
-    userId=u.user.uid;
-    db.collection("users").doc(userId).set({
-      balance:100000,
-      portfolio:{}
-    });
-    alert("Signup done");
+// SAVE
+function save(){
+  localStorage.setItem("balance",balance);
+  localStorage.setItem("portfolio",JSON.stringify(portfolio));
+  localStorage.setItem("avgPrice",JSON.stringify(avgPrice));
+  localStorage.setItem("sl",JSON.stringify(stopLoss));
+  localStorage.setItem("tp",JSON.stringify(takeProfit));
+}
+
+// CHART
+function loadChart(){
+  document.getElementById("chart").innerHTML="";
+  new TradingView.widget({
+    "container_id":"chart",
+    "width":"100%",
+    "height":400,
+    "symbol":"NASDAQ:"+symbol,
+    "theme":"dark"
   });
 }
+loadChart();
 
-function login(){
-  auth.signInWithEmailAndPassword(email(), pass())
-  .then(u=>{
-    userId=u.user.uid;
-    showApp();
-    loadData();
-    loadHistory();
-  });
+// SYMBOL
+function changeSymbol(){
+  symbol=document.getElementById("symbol").value;
+  loadChart();
+  getPrice();
 }
 
-function email(){ return document.getElementById("email").value; }
-function pass(){ return document.getElementById("password").value; }
-
-// SHOW
-function showApp(){
-  document.getElementById("loginBox").style.display="none";
-  document.getElementById("app").style.display="block";
-}
-
-// DATA
-function loadData(){
-  db.collection("users").doc(userId).get().then(doc=>{
-    let d=doc.data();
-    balance=d.balance;
-    portfolio=d.portfolio || {};
-    update();
-  });
-}
-
-function saveData(){
-  db.collection("users").doc(userId).set({
-    balance, portfolio
-  });
-}
-
-// UPDATE UI
+// UPDATE
 function update(){
   document.getElementById("balance").innerText="Balance: ₹"+balance;
-
-  let text="";
-  for(let s in portfolio){
-    text += s + ": " + portfolio[s] + " | ";
-  }
-  document.getElementById("portfolio").innerText=text || "No stocks";
+  updatePL();
 }
 
 // BUY
 function buy(){
   let qty=Number(document.getElementById("qty").value);
+  let sl=Number(document.getElementById("sl").value);
+  let tp=Number(document.getElementById("tp").value);
+
   if(qty<=0) return alert("Enter qty");
 
   let total=qty*price;
 
   if(balance>=total){
+    let oldQty=portfolio[symbol]||0;
+    let oldAvg=avgPrice[symbol]||0;
+
+    let newQty=oldQty+qty;
+    avgPrice[symbol]=((oldQty*oldAvg)+total)/newQty;
+
+    portfolio[symbol]=newQty;
+    stopLoss[symbol]=sl;
+    takeProfit[symbol]=tp;
+
     balance-=total;
-    portfolio[currentSymbol]=(portfolio[currentSymbol]||0)+qty;
-    update();
-    saveData();
+
     addHistory("BUY",qty);
+    save();
+    update();
   } else alert("No balance");
 }
 
 // SELL
 function sell(){
   let qty=Number(document.getElementById("qty").value);
-  if(qty<=0) return alert("Enter qty");
 
-  if((portfolio[currentSymbol]||0)>=qty){
+  if((portfolio[symbol]||0)>=qty){
     balance+=qty*price;
-    portfolio[currentSymbol]-=qty;
-    update();
-    saveData();
+    portfolio[symbol]-=qty;
+
     addHistory("SELL",qty);
+    save();
+    update();
   } else alert("No stock");
+}
+
+// AUTO SL + TP
+function checkSLTP(){
+  let qty=portfolio[symbol]||0;
+  let sl=stopLoss[symbol];
+  let tp=takeProfit[symbol];
+
+  if(qty>0){
+    if(sl && price<=sl){
+      balance+=qty*price;
+      portfolio[symbol]=0;
+      addHistory("STOP LOSS HIT",qty);
+      alert("🛑 Stop Loss Triggered");
+    }
+
+    if(tp && price>=tp){
+      balance+=qty*price;
+      portfolio[symbol]=0;
+      addHistory("TAKE PROFIT HIT",qty);
+      alert("🎯 Target Hit");
+    }
+
+    save();
+    update();
+  }
 }
 
 // HISTORY
 function addHistory(type,qty){
-  db.collection("users").doc(userId)
-  .collection("history").add({
-    type,qty,price,symbol:currentSymbol,time:new Date()
-  });
+  let div=document.getElementById("history");
+  div.innerHTML=`<p>${type} ${qty} ${symbol} @ ₹${price}</p>`+div.innerHTML;
 }
 
-function loadHistory(){
-  db.collection("users").doc(userId)
-  .collection("history").orderBy("time","desc")
-  .onSnapshot(snap=>{
-    let html="";
-    snap.forEach(doc=>{
-      let d=doc.data();
-      html+=`<p>${d.type} ${d.qty} ${d.symbol} @ ₹${d.price}</p>`;
-    });
-    document.getElementById("history").innerHTML=html;
-  });
+// P/L
+function updatePL(){
+  let qty=portfolio[symbol]||0;
+  let avg=avgPrice[symbol]||0;
+
+  let pl=(price-avg)*qty;
+  document.getElementById("pl").innerText="P/L: ₹"+pl.toFixed(2);
 }
 
-// STOCK CHANGE
-function changeStock(){
-  currentSymbol=document.getElementById("symbol").value;
-  getPrice();
+// AI
+function aiSignal(){
+  let avg=avgPrice[symbol]||price;
+  let signal="HOLD";
+
+  if(price>avg) signal="SELL 🔴";
+  else if(price<avg) signal="BUY 🟢";
+
+  document.getElementById("signal").innerText="AI Signal: "+signal;
 }
 
-// REAL PRICE
+// PRICE
 function getPrice(){
-  fetch("https://finnhub.io/api/v1/quote?symbol="+currentSymbol+"&token=d6vvjq9r01qjh1odm3sgd6vvjq9r01qjh1odm3t0")
+  fetch("https://finnhub.io/api/v1/quote?symbol="+symbol+"&token=d6vvjq9r01qjh1odm3sgd6vvjq9r01qjh1odm3t0")
   .then(r=>r.json())
   .then(d=>{
     if(d && d.c){
       price=d.c;
-      document.getElementById("price").innerText=currentSymbol+" ₹"+price;
+      document.getElementById("price").innerText=symbol+" ₹"+price;
+
+      updatePL();
+      aiSignal();
+      checkSLTP();
     }
   });
 }
 
 setInterval(getPrice,5000);
+getPrice();
+update();
 
 </script>
 
