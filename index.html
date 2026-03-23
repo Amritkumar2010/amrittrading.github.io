@@ -1,4 +1,4 @@
-
+tum
 <!DOCTYPE html>
 <html>
 <head>
@@ -62,8 +62,20 @@ function sell() {
   } else {
     alert("Not enough stock");
   }
+}function getPrice(){
+  fetch("https://finnhub.io/api/v1/quote?symbol=AAPL&token=d6vvjq9r01qjh1odm3sgd6vvjq9r01qjh1odm3t0")
+  .then(res => res.json())
+  .then(data => {
+    if(data && data.c){
+      price = data.c;
+      document.getElementById("price").innerText = "Price: ₹" + price;
+    }
+  });
 }
-</script>
 
+setInterval(getPrice, 5000);
+getPrice();
+</script>
 </body>
 </html>
+
