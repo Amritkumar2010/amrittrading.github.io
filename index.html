@@ -1,18 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Pro Paper Trading App</title>
+<title>Amrit Pro Trading App</title>
 
 <style>
-body{margin:0;font-family:Arial;background:#0d1117;color:white;display:flex}
-.sidebar{width:260px;background:#161b22;padding:10px}
-.main{flex:1;padding:10px}
-h2,h3{margin:5px 0}
-input,button,select{width:100%;padding:10px;margin:5px 0;border:none}
+body{
+  margin:0;
+  font-family:Arial;
+  background:#0d1117;
+  color:white;
+  display:flex;
+}
+.sidebar{
+  width:260px;
+  background:#161b22;
+  padding:10px;
+}
+.main{
+  flex:1;
+  padding:10px;
+}
+input,button,select{
+  width:100%;
+  padding:10px;
+  margin:5px 0;
+  border:none;
+}
 button{cursor:pointer}
 .buy{background:green;color:white}
 .sell{background:red;color:white}
 </style>
+
 </head>
 
 <body>
@@ -27,8 +45,8 @@ button{cursor:pointer}
 <option value="BTCUSDT">Bitcoin</option>
 </select>
 
-<input id="qty" placeholder="Quantity">
-<input id="sl" placeholder="Stop Loss">
+<input type="number" id="qty" placeholder="Quantity">
+<input type="number" id="sl" placeholder="Stop Loss">
 
 <button class="buy" onclick="buy()">BUY</button>
 <button class="sell" onclick="sell()">SELL</button>
@@ -47,109 +65,124 @@ button{cursor:pointer}
 
 <script>
 
-// GLOBAL
-let balance=100000;
-let stock=0;
-let avgPrice=0;
-let price=100;
-let symbol="AAPL";
-let stopLoss=0;
+// ===== GLOBAL =====
+let balance = 100000;
+let stock = 0;
+let avgPrice = 0;
+let price = 100;
+let symbol = "AAPL";
+let stopLoss = 0;
 
-// CHART
+// ===== CHART =====
 function loadChart(){
-document.getElementById("chart").innerHTML="";
-new TradingView.widget({
-container_id:"chart",
-width:"100%",
-height:400,
-symbol:"BINANCE:BTCUSDT",
-theme:"dark"
-});
+  document.getElementById("chart").innerHTML="";
+  new TradingView.widget({
+    container_id:"chart",
+    width:"100%",
+    height:400,
+    symbol:"BINANCE:BTCUSDT",
+    theme:"dark"
+  });
 }
 loadChart();
 
-// SYMBOL CHANGE
+// ===== SYMBOL CHANGE =====
 function changeSymbol(){
-symbol=document.getElementById("symbol").value;
-loadChart();
+  symbol = document.getElementById("symbol").value;
+  loadChart();
 }
 
-// PRICE ENGINE (FAST + REAL FEEL)
+// ===== PRICE ENGINE =====
 function getPrice(){
-let move=(Math.random()-0.5)*20;
-price=(Number(price)+move).toFixed(2);
+  let move = (Math.random() - 0.5) * 20;
+  price = Number(price) + move;
+  price = price.toFixed(2);
 
-document.getElementById("price").innerText=symbol+" ₹"+price;
+  document.getElementById("price").innerText =
+    symbol + " ₹" + price;
 
-updatePL();
-checkSL();
+  updatePL();
+  checkSL();
 }
 
-// BUY
+// ===== BUY =====
 function buy(){
-let qty=Number(document.getElementById("qty").value);
-let sl=Number(document.getElementById("sl").value);
+  let qty = Number(document.getElementById("qty").value);
+  let sl = Number(document.getElementById("sl").value);
 
-let cost=qty*price;
+  if(qty <= 0) return alert("Enter valid quantity");
 
-if(balance>=cost){
-balance-=cost;
+  let cost = qty * price;
 
-// avg price calc
-avgPrice=((avgPrice*stock)+(price*qty))/(stock+qty);
+  if(balance >= cost){
+    balance -= cost;
 
-stock+=qty;
-stopLoss=sl;
+    avgPrice = ((avgPrice * stock) + (price * qty)) / (stock + qty);
 
-flash("green");
-update();
+    stock += qty;
+    stopLoss = sl;
+
+    flash("green");
+    update();
+  } else {
+    alert("Not enough balance");
+  }
 }
-}
 
-// SELL
+// ===== SELL =====
 function sell(){
-let qty=Number(document.getElementById("qty").value);
+  let qty = Number(document.getElementById("qty").value);
 
-if(stock>=qty){
-balance+=qty*price;
-stock-=qty;
+  if(qty <= 0) return alert("Enter valid quantity");
 
-flash("red");
-update();
+  if(stock >= qty){
+    balance += qty * price;
+    stock -= qty;
+
+    flash("red");
+    update();
+  } else {
+    alert("Not enough stock");
+  }
 }
-}
 
-// STOP LOSS
+// ===== STOP LOSS =====
 function checkSL(){
-if(stock>0 && stopLoss>0 && price<=stopLoss){
-balance+=stock*price;
-stock=0;
-alert("Stop Loss Hit 🚨");
+  if(stock > 0 && stopLoss > 0 && price <= stopLoss){
+    balance += stock * price;
+    stock = 0;
 
-update();
-}
+    alert("Stop Loss Hit 🚨");
+    update();
+  }
 }
 
-// UPDATE UI
+// ===== UPDATE UI =====
 function update(){
-document.getElementById("balance").innerText="Balance ₹"+balance;
-updatePL();
+  document.getElementById("balance").innerText =
+    "Balance ₹" + balance.toFixed(2);
+
+  updatePL();
 }
 
-// P/L
+// ===== P/L =====
 function updatePL(){
-let pl=(price-avgPrice)*stock;
-document.getElementById("pl").innerText="P/L ₹"+pl.toFixed(2);
+  let pl = (price - avgPrice) * stock;
+  document.getElementById("pl").innerText =
+    "P/L ₹" + pl.toFixed(2);
 }
 
-// FLASH EFFECT
+// ===== FLASH EFFECT =====
 function flash(color){
-document.body.style.background=color;
-setTimeout(()=>document.body.style.background="#0d1117",150);
+  document.body.style.background = color;
+  setTimeout(()=>{
+    document.body.style.background = "#0d1117";
+  },150);
 }
 
-// SPEED
-setInterval(getPrice,1000);
+// ===== AUTO RUN =====
+setInterval(getPrice, 1000);
+getPrice();
 
 </script>
 
