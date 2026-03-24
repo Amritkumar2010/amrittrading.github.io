@@ -1,216 +1,218 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Amrit GOD LEVEL Trading</title>
+<title>Amrit Ultimate Trading App</title>
 
-  <style>
-    body{margin:0;font-family:Arial;background:#0d1117;color:white;text-align:center;}
-    header{background:#161b22;padding:15px;font-size:22px;}
-    .card{background:#161b22;margin:10px;padding:15px;border-radius:10px;}
-    button{padding:10px;margin:5px;border:none;border-radius:5px;}
-    .buy{background:green;color:white;}
-    .sell{background:red;color:white;}
-    input,select{padding:10px;margin:5px;}
-  </style>
+<style>
+body{margin:0;font-family:Arial;background:#0d1117;color:white;display:flex}
+.sidebar{width:250px;background:#161b22;padding:10px}
+.main{flex:1;padding:10px}
+.chat{width:250px;background:#161b22;display:flex;flex-direction:column}
+#chatBox{flex:1;overflow:auto;padding:10px}
+input,button,select{width:100%;margin:5px 0;padding:8px}
+</style>
 </head>
 
 <body>
 
-<header>🔥 Amrit GOD LEVEL Trading</header>
+<!-- SIDEBAR -->
+<div class="sidebar">
 
-<div class="card">
-<h3 id="balance"></h3>
-<h3 id="pl"></h3>
-<h3 id="signal"></h3>
+<h2>🚀 Trade</h2>
+
+<div id="loginDiv">
+<input id="user" placeholder="Username">
+<button onclick="login()">Login</button>
 </div>
 
+<div id="app" style="display:none">
+
 <select id="symbol" onchange="changeSymbol()">
-  <option value="AAPL">Apple</option>
-  <option value="TSLA">Tesla</option>
-  <option value="BTCUSDT">Bitcoin</option>
+<option value="AAPL">Apple</option>
+<option value="TSLA">Tesla</option>
+<option value="BTCUSDT">Bitcoin</option>
 </select>
 
-<br>
+<input id="qty" placeholder="Qty">
+<input id="sl" placeholder="Stop Loss">
 
-<input type="number" id="qty" placeholder="Quantity">
-<input type="number" id="sl" placeholder="Stop Loss">
-<input type="number" id="tp" placeholder="Take Profit">
+<button onclick="buy()">BUY</button>
+<button onclick="sell()">SELL</button>
 
-<br>
+<h3 id="balance"></h3>
+<h3 id="pl"></h3>
 
-<button class="buy" onclick="buy()">BUY</button>
-<button class="sell" onclick="sell()">SELL</button>
+</div>
 
+</div>
+
+<!-- MAIN -->
+<div class="main">
 <h2 id="price">Loading...</h2>
-
 <div id="chart"></div>
+</div>
 
-<h3>📜 History</h3>
-<div id="history"></div>
+<!-- CHAT -->
+<div class="chat">
+<div id="chatBox"></div>
+<input id="msg" placeholder="Message..." onkeydown="send(event)">
+</div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 
 <script>
 
-// STORAGE
-let balance=localStorage.getItem("balance")||100000;
-let portfolio=JSON.parse(localStorage.getItem("portfolio")||"{}");
-let avgPrice=JSON.parse(localStorage.getItem("avgPrice")||"{}");
-let stopLoss=JSON.parse(localStorage.getItem("sl")||"{}");
-let takeProfit=JSON.parse(localStorage.getItem("tp")||"{}");
+// USER SYSTEM
+let currentUser="";
+let users=JSON.parse(localStorage.getItem("users")||"{}");
 
-let price=0;
-let symbol="AAPL";
+// LOGIN
+function login(){
+let name=document.getElementById("user").value;
+if(!name) return alert("Enter name");
 
-// SAVE
-function save(){
-  localStorage.setItem("balance",balance);
-  localStorage.setItem("portfolio",JSON.stringify(portfolio));
-  localStorage.setItem("avgPrice",JSON.stringify(avgPrice));
-  localStorage.setItem("sl",JSON.stringify(stopLoss));
-  localStorage.setItem("tp",JSON.stringify(takeProfit));
+currentUser=name;
+
+if(!users[name]){
+users[name]={balance:100000,stock:0,sl:0};
 }
+
+localStorage.setItem("users",JSON.stringify(users));
+
+loginDiv.style.display="none";
+app.style.display="block";
+
+loadUser();
+}
+
+// LOAD USER
+function loadUser(){
+let u=users[currentUser];
+balance.innerText="Balance ₹"+u.balance;
+updatePL();
+}
+
+// GLOBAL
+let price=100;
+let symbol="AAPL";
 
 // CHART
 function loadChart(){
-  document.getElementById("chart").innerHTML="";
-  new TradingView.widget({
-    "container_id":"chart",
-    "width":"100%",
-    "height":400,
-    "symbol":"NASDAQ:"+symbol,
-    "theme":"dark"
-  });
+document.getElementById("chart").innerHTML="";
+new TradingView.widget({
+container_id:"chart",
+width:"100%",
+height:400,
+symbol:"NASDAQ:"+symbol,
+theme:"dark"
+});
 }
 loadChart();
 
-// SYMBOL
+// CHANGE SYMBOL
 function changeSymbol(){
-  symbol=document.getElementById("symbol").value;
-  loadChart();
-  getPrice();
-}
-
-// UPDATE
-function update(){
-  document.getElementById("balance").innerText="Balance: ₹"+balance;
-  updatePL();
+symbol=document.getElementById("symbol").value;
+loadChart();
 }
 
 // BUY
 function buy(){
-  let qty=Number(document.getElementById("qty").value);
-  let sl=Number(document.getElementById("sl").value);
-  let tp=Number(document.getElementById("tp").value);
+let qty=Number(qtyInput());
+let sl=Number(document.getElementById("sl").value);
 
-  if(qty<=0) return alert("Enter qty");
+let u=users[currentUser];
 
-  let total=qty*price;
+if(u.balance>=qty*price){
+u.balance-=qty*price;
+u.stock+=qty;
+u.sl=sl;
 
-  if(balance>=total){
-    let oldQty=portfolio[symbol]||0;
-    let oldAvg=avgPrice[symbol]||0;
-
-    let newQty=oldQty+qty;
-    avgPrice[symbol]=((oldQty*oldAvg)+total)/newQty;
-
-    portfolio[symbol]=newQty;
-    stopLoss[symbol]=sl;
-    takeProfit[symbol]=tp;
-
-    balance-=total;
-
-    addHistory("BUY",qty);
-    save();
-    update();
-  } else alert("No balance");
+save();
+loadUser();
+}
 }
 
 // SELL
 function sell(){
-  let qty=Number(document.getElementById("qty").value);
+let qty=Number(qtyInput());
+let u=users[currentUser];
 
-  if((portfolio[symbol]||0)>=qty){
-    balance+=qty*price;
-    portfolio[symbol]-=qty;
+if(u.stock>=qty){
+u.balance+=qty*price;
+u.stock-=qty;
 
-    addHistory("SELL",qty);
-    save();
-    update();
-  } else alert("No stock");
+save();
+loadUser();
+}
 }
 
-// AUTO SL + TP
-function checkSLTP(){
-  let qty=portfolio[symbol]||0;
-  let sl=stopLoss[symbol];
-  let tp=takeProfit[symbol];
+// STOP LOSS
+function checkSL(){
+let u=users[currentUser];
 
-  if(qty>0){
-    if(sl && price<=sl){
-      balance+=qty*price;
-      portfolio[symbol]=0;
-      addHistory("STOP LOSS HIT",qty);
-      alert("🛑 Stop Loss Triggered");
-    }
-
-    if(tp && price>=tp){
-      balance+=qty*price;
-      portfolio[symbol]=0;
-      addHistory("TAKE PROFIT HIT",qty);
-      alert("🎯 Target Hit");
-    }
-
-    save();
-    update();
-  }
+if(u.stock>0 && price<=u.sl){
+u.balance+=u.stock*price;
+u.stock=0;
+alert("Stop Loss Hit");
+save();
+loadUser();
 }
-
-// HISTORY
-function addHistory(type,qty){
-  let div=document.getElementById("history");
-  div.innerHTML=`<p>${type} ${qty} ${symbol} @ ₹${price}</p>`+div.innerHTML;
 }
 
 // P/L
 function updatePL(){
-  let qty=portfolio[symbol]||0;
-  let avg=avgPrice[symbol]||0;
-
-  let pl=(price-avg)*qty;
-  document.getElementById("pl").innerText="P/L: ₹"+pl.toFixed(2);
+let u=users[currentUser];
+let pl=u.stock*price;
+document.getElementById("pl").innerText="P/L ₹"+pl.toFixed(2);
 }
 
-// AI
-function aiSignal(){
-  let avg=avgPrice[symbol]||price;
-  let signal="HOLD";
-
-  if(price>avg) signal="SELL 🔴";
-  else if(price<avg) signal="BUY 🟢";
-
-  document.getElementById("signal").innerText="AI Signal: "+signal;
+// SAVE
+function save(){
+localStorage.setItem("users",JSON.stringify(users));
 }
 
-// PRICE
+// PRICE (API)
 function getPrice(){
-  fetch("https://finnhub.io/api/v1/quote?symbol="+symbol+"&token=d6vvjq9r01qjh1odm3sgd6vvjq9r01qjh1odm3t0")
-  .then(r=>r.json())
-  .then(d=>{
-    if(d && d.c){
-      price=d.c;
-      document.getElementById("price").innerText=symbol+" ₹"+price;
-
-      updatePL();
-      aiSignal();
-      checkSLTP();
-    }
-  });
+fetch("https://finnhub.io/api/v1/quote?symbol="+symbol+"&token=d6vvjq9r01qjh1odm3sgd6vvjq9r01qjh1odm3t0")
+.then(r=>r.json())
+.then(d=>{
+if(d.c){
+price=d.c;
+document.getElementById("price").innerText=symbol+" ₹"+price;
+updatePL();
+checkSL();
+}
+});
 }
 
 setInterval(getPrice,5000);
 getPrice();
-update();
+
+// CHAT
+let chatData=JSON.parse(localStorage.getItem("chat")||"[]");
+
+function loadChat(){
+chatBox.innerHTML="";
+chatData.forEach(m=>{
+chatBox.innerHTML+=`<div>${m}</div>`;
+});
+}
+loadChat();
+
+function send(e){
+if(e.key==="Enter"){
+chatData.push(currentUser+": "+msg.value);
+msg.value="";
+localStorage.setItem("chat",JSON.stringify(chatData));
+loadChat();
+}
+}
+
+// HELPER
+function qtyInput(){
+return document.getElementById("qty").value||0;
+}
 
 </script>
 
