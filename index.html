@@ -1,32 +1,25 @@
-
 <!DOCTYPE html>
 <html>
 <head>
-<title>Amrit Ultimate Trading App</title>
+<title>Pro Paper Trading App</title>
 
 <style>
 body{margin:0;font-family:Arial;background:#0d1117;color:white;display:flex}
-.sidebar{width:250px;background:#161b22;padding:10px}
+.sidebar{width:260px;background:#161b22;padding:10px}
 .main{flex:1;padding:10px}
-.chat{width:250px;background:#161b22;display:flex;flex-direction:column}
-#chatBox{flex:1;overflow:auto;padding:10px}
-input,button,select{width:100%;margin:5px 0;padding:8px}
+h2,h3{margin:5px 0}
+input,button,select{width:100%;padding:10px;margin:5px 0;border:none}
+button{cursor:pointer}
+.buy{background:green;color:white}
+.sell{background:red;color:white}
 </style>
 </head>
 
 <body>
 
-<!-- SIDEBAR -->
 <div class="sidebar">
 
-<h2>🚀 Trade</h2>
-
-<div id="loginDiv">
-<input id="user" placeholder="Username">
-<button onclick="login()">Login</button>
-</div>
-
-<div id="app" style="display:none">
+<h2>🚀 Paper Trading</h2>
 
 <select id="symbol" onchange="changeSymbol()">
 <option value="AAPL">Apple</option>
@@ -34,68 +27,33 @@ input,button,select{width:100%;margin:5px 0;padding:8px}
 <option value="BTCUSDT">Bitcoin</option>
 </select>
 
-<input id="qty" placeholder="Qty">
+<input id="qty" placeholder="Quantity">
 <input id="sl" placeholder="Stop Loss">
 
-<button onclick="buy()">BUY</button>
-<button onclick="sell()">SELL</button>
+<button class="buy" onclick="buy()">BUY</button>
+<button class="sell" onclick="sell()">SELL</button>
 
-<h3 id="balance"></h3>
-<h3 id="pl"></h3>
-
-</div>
+<h3 id="balance">Balance ₹100000</h3>
+<h3 id="pl">P/L ₹0</h3>
 
 </div>
 
-<!-- MAIN -->
 <div class="main">
 <h2 id="price">Loading...</h2>
 <div id="chart"></div>
-</div>
-
-<!-- CHAT -->
-<div class="chat">
-<div id="chatBox"></div>
-<input id="msg" placeholder="Message..." onkeydown="send(event)">
 </div>
 
 <script src="https://s3.tradingview.com/tv.js"></script>
 
 <script>
 
-// USER SYSTEM
-let currentUser="";
-let users=JSON.parse(localStorage.getItem("users")||"{}");
-
-// LOGIN
-function login(){
-let name=document.getElementById("user").value;
-if(!name) return alert("Enter name");
-
-currentUser=name;
-
-if(!users[name]){
-users[name]={balance:100000,stock:0,sl:0};
-}
-
-localStorage.setItem("users",JSON.stringify(users));
-
-loginDiv.style.display="none";
-app.style.display="block";
-
-loadUser();
-}
-
-// LOAD USER
-function loadUser(){
-let u=users[currentUser];
-balance.innerText="Balance ₹"+u.balance;
-updatePL();
-}
-
 // GLOBAL
+let balance=100000;
+let stock=0;
+let avgPrice=0;
 let price=100;
 let symbol="AAPL";
+let stopLoss=0;
 
 // CHART
 function loadChart(){
@@ -104,117 +62,97 @@ new TradingView.widget({
 container_id:"chart",
 width:"100%",
 height:400,
-symbol:"NASDAQ:"+symbol,
+symbol:"BINANCE:BTCUSDT",
 theme:"dark"
 });
 }
 loadChart();
 
-// CHANGE SYMBOL
+// SYMBOL CHANGE
 function changeSymbol(){
 symbol=document.getElementById("symbol").value;
 loadChart();
 }
 
+// PRICE ENGINE (FAST + REAL FEEL)
+function getPrice(){
+let move=(Math.random()-0.5)*20;
+price=(Number(price)+move).toFixed(2);
+
+document.getElementById("price").innerText=symbol+" ₹"+price;
+
+updatePL();
+checkSL();
+}
+
 // BUY
 function buy(){
-let qty=Number(qtyInput());
+let qty=Number(document.getElementById("qty").value);
 let sl=Number(document.getElementById("sl").value);
 
-let u=users[currentUser];
+let cost=qty*price;
 
-if(u.balance>=qty*price){
-u.balance-=qty*price;
-u.stock+=qty;
-u.sl=sl;
+if(balance>=cost){
+balance-=cost;
 
-save();
-loadUser();
+// avg price calc
+avgPrice=((avgPrice*stock)+(price*qty))/(stock+qty);
+
+stock+=qty;
+stopLoss=sl;
+
+flash("green");
+update();
 }
 }
 
 // SELL
 function sell(){
-let qty=Number(qtyInput());
-let u=users[currentUser];
+let qty=Number(document.getElementById("qty").value);
 
-if(u.stock>=qty){
-u.balance+=qty*price;
-u.stock-=qty;
+if(stock>=qty){
+balance+=qty*price;
+stock-=qty;
 
-save();
-loadUser();
+flash("red");
+update();
 }
 }
 
 // STOP LOSS
 function checkSL(){
-let u=users[currentUser];
+if(stock>0 && stopLoss>0 && price<=stopLoss){
+balance+=stock*price;
+stock=0;
+alert("Stop Loss Hit 🚨");
 
-if(u.stock>0 && price<=u.sl){
-u.balance+=u.stock*price;
-u.stock=0;
-alert("Stop Loss Hit");
-save();
-loadUser();
+update();
 }
+}
+
+// UPDATE UI
+function update(){
+document.getElementById("balance").innerText="Balance ₹"+balance;
+updatePL();
 }
 
 // P/L
 function updatePL(){
-let u=users[currentUser];
-let pl=u.stock*price;
+let pl=(price-avgPrice)*stock;
 document.getElementById("pl").innerText="P/L ₹"+pl.toFixed(2);
 }
 
-// SAVE
-function save(){
-localStorage.setItem("users",JSON.stringify(users));
+// FLASH EFFECT
+function flash(color){
+document.body.style.background=color;
+setTimeout(()=>document.body.style.background="#0d1117",150);
 }
 
-// PRICE (API)
-function getPrice(){
-fetch("https://finnhub.io/api/v1/quote?symbol="+symbol+"&token=d6vvjq9r01qjh1odm3sgd6vvjq9r01qjh1odm3t0")
-.then(r=>r.json())
-.then(d=>{
-if(d.c){
-price=d.c;
-document.getElementById("price").innerText=symbol+" ₹"+price;
-updatePL();
-checkSL();
-}
-});
-}
-
-setInterval(getPrice,5000);
-getPrice();
-
-// CHAT
-let chatData=JSON.parse(localStorage.getItem("chat")||"[]");
-
-function loadChat(){
-chatBox.innerHTML="";
-chatData.forEach(m=>{
-chatBox.innerHTML+=`<div>${m}</div>`;
-});
-}
-loadChat();
-
-function send(e){
-if(e.key==="Enter"){
-chatData.push(currentUser+": "+msg.value);
-msg.value="";
-localStorage.setItem("chat",JSON.stringify(chatData));
-loadChat();
-}
-}
-
-// HELPER
-function qtyInput(){
-return document.getElementById("qty").value||0;
-}
+// SPEED
+setInterval(getPrice,1000);
 
 </script>
 
 </body>
 </html>
+
