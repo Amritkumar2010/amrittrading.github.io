@@ -1,7 +1,9 @@
+
+
 <!DOCTYPE html>
 <html>
 <head>
-<title>Amrit Pro Trading App</title>
+<title>Amrit Ultimate Trading App</title>
 
 <style>
 body{
@@ -39,9 +41,17 @@ button{cursor:pointer}
 
 <h2>🚀 Paper Trading</h2>
 
-<select id="symbol" onchange="changeSymbol()">
+<!-- SEARCH -->
+<input id="search" placeholder="Search (AAPL, TSLA, BTCUSDT)">
+<button onclick="loadStock()">Search</button>
+
+<!-- DROPDOWN -->
+<select onchange="quickSelect(this.value)">
 <option value="AAPL">Apple</option>
 <option value="TSLA">Tesla</option>
+<option value="MSFT">Microsoft</option>
+<option value="RELIANCE">Reliance</option>
+<option value="TCS">TCS</option>
 <option value="BTCUSDT">Bitcoin</option>
 </select>
 
@@ -73,22 +83,31 @@ let price = 100;
 let symbol = "AAPL";
 let stopLoss = 0;
 
-// ===== CHART =====
+// ===== LOAD CHART =====
 function loadChart(){
   document.getElementById("chart").innerHTML="";
   new TradingView.widget({
     container_id:"chart",
     width:"100%",
     height:400,
-    symbol:"BINANCE:BTCUSDT",
+    symbol:"NASDAQ:"+symbol,
     theme:"dark"
   });
 }
 loadChart();
 
-// ===== SYMBOL CHANGE =====
-function changeSymbol(){
-  symbol = document.getElementById("symbol").value;
+// ===== SEARCH STOCK =====
+function loadStock(){
+  let s = document.getElementById("search").value.toUpperCase();
+  if(!s) return;
+
+  symbol = s;
+  loadChart();
+}
+
+// ===== DROPDOWN =====
+function quickSelect(s){
+  symbol = s;
   loadChart();
 }
 
@@ -188,4 +207,3 @@ getPrice();
 
 </body>
 </html>
-
